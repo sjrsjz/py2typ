@@ -68,8 +68,22 @@ class Py2TypPlot:
         width_cm = fig_width * 2.54
         height_cm = fig_height * 2.54
         # 获取行列数
-        nrows = len(set(ax.get_position().bounds[1] for ax in fig.axes))
-        ncols = len(set(ax.get_position().bounds[0] for ax in fig.axes))
+        try:
+            gridspec = fig.gca().get_gridspec()
+            if gridspec is not None:
+                nrows, ncols = gridspec.get_geometry()
+            else:
+                # 如果没有gridspec,使用axes位置计算
+                nrows = len(set(ax.get_position().bounds[1] for ax in fig.axes))
+                ncols = len(set(ax.get_position().bounds[0] for ax in fig.axes))
+                
+            # 确保至少有一行一列
+            nrows = max(1, nrows)
+            ncols = max(1, ncols)
+        except:
+            # 默认值
+            nrows = 1
+            ncols = 1
         result = []
         # 添加画布设置
 
@@ -199,18 +213,14 @@ f"""    cell[#{{
                     
                 if label:
                     labels_info.append({
-                        'x': x_data[-1] * scale_x,
-                        'y': y_data[-1] * scale_y,
-                        'label': label
+                        'label': label,
+                        'linestyle': linestyle,
+                        'color': color,
+                        'marker': marker,
+                        'type': 'line'
                     })
             
-            # 按Y坐标排序并绘制标签
-            if labels_info:
-                labels_info.sort(key=lambda x: x['y'])
-                vertical_spacing = 0.1  # 垂直间距
-                for i, info in enumerate(labels_info):
-                    y_pos = info['y'] + i * vertical_spacing
-                    result.append(f"            cetz.draw.content(({info['x']}, {y_pos}), [{info['label']}])")            
+
             # 绘制散点
             for collection in ax.collections:
                 if isinstance(collection, PathCollection):
@@ -231,11 +241,97 @@ f"""    cell[#{{
                     edgecolors = collection.get_edgecolors()
                     
                     for i, (x, y) in enumerate(offsets):
-                        color = Py2TypPlot.convert_color(mapped_colors[i])
+                        color = Py2TypPlot.convert_color(mapped_colors[i] if len(mapped_colors) > i else mapped_colors[0])
                         edgecolor = Py2TypPlot.convert_color(edgecolors[i] if len(edgecolors) > i else edgecolors[0])
                         size = collection.get_sizes()[i] if len(collection.get_sizes()) > i else collection.get_sizes()[0]
                         size /= 36
                         result.append(f"        cetz.draw.circle(({x * scale_x}, {y * scale_y}), radius: {size}pt, fill: {color}, stroke: {edgecolor})")            # 绘制条形图
+                    
+                    labels = collection.get_label()
+                    if labels and labels != '_child0' and labels != '_collection0':
+                        # 获取散点图样式信息
+                        color = Py2TypPlot.convert_color(mapped_colors[0])
+                        edgecolor = Py2TypPlot.convert_color(edgecolors[0])
+                        labels_info.append({
+                            'label': labels,
+                            'linestyle': 'none',
+                            'marker': 'circle',  # 散点图用圆点标记
+                            'color': color,      # 保存颜色信息用于图例
+                            'stroke': edgecolor,
+                            'type': 'scatter'    # 标记为散点类型
+                        })
+
+            # 绘制图例
+            if labels_info:
+                legend_y = y_max * scale_y - 0.05
+                legend_height = len(labels_info) * 0.3
+                
+                # 统计最大文本大小
+                labels = [f"[{info['label']}]" for info in labels_info]
+                
+                if len(labels) == 1:
+                    result.append(f"          let labels = ({labels[0]},)")
+                else:
+                    result.append(f"          let labels = ({', '.join(labels)})")
+                result.append("          let x-max-text-width = labels.map(label => measure(label).width.cm() / 2.54).sorted().last()")
+                
+                # 绘制图例背景
+                result.append(f"""          cetz.draw.rect(
+                        ({x_max * scale_x - 0.55} - x-max-text-width, {legend_y}),
+                        ({x_max * scale_x - 0.05}, {legend_y - legend_height}),
+                        fill: rgb(255, 255, 255, 200),
+                        stroke: gray
+                    )""")
+                
+                # 绘制图例项
+                for i, info in enumerate(labels_info):
+                    y_pos = legend_y - (i * 0.3) - 0.15
+                    
+                    # 根据类型绘制不同的图例标记
+                    if info['type'] == 'line':
+                        # 绘制线条
+                        result.append(f"""          cetz.draw.line(
+                            ({x_max * scale_x - 0.45} - x-max-text-width, {y_pos}),
+                            ({x_max * scale_x - 0.25} - x-max-text-width, {y_pos}),
+                            stroke: (paint: {info['color']}, dash: {info['linestyle']}, thickness: 1pt)
+                        )""")
+                        
+                        # 如果有标记，绘制标记
+                        if info['marker'] != 'None':
+                            if info['marker'] == 'o':
+                                result.append(f"""          cetz.draw.circle(
+                                    ({x_max * scale_x - 0.35} - x-max-text-width, {y_pos}),
+                                    radius: 1pt,
+                                    fill: {info['color']},
+                                    stroke: none
+                                )""")
+                            elif info['marker'] in ['x', '+']:
+                                marker_map = {
+                                    'x': '✖',
+                                    '+': '➕'
+                                }
+                                result.append(f"""          cetz.draw.content(
+                                    ({x_max * scale_x - 0.35} - x-max-text-width, {y_pos}),
+                                    [#box(width: 1cm,height: 1cm)[#align(center + horizon)[#text(fill: {info['color']}, size: 0.5em)[{marker_map[info['marker']]}]]]]
+                                )""")
+                    
+                    elif info['type'] == 'scatter':
+                        # 绘制散点标记
+                        result.append(f"""          cetz.draw.circle(
+                            ({x_max * scale_x - 0.35} - x-max-text-width, {y_pos}),
+                            radius: 1pt,
+                            fill: {info['color']},
+                            stroke: {info['stroke']}
+                        )""")
+                    
+                    # 绘制标签文本
+                    result.append(f"""          cetz.draw.content(
+                        ({x_max * scale_x - 0.15} - x-max-text-width, {y_pos}),
+                        [{info['label']}],
+                        anchor: "west"
+                    )""")
+
+
             for patch in ax.patches:
                 if isinstance(patch, Rectangle):
                     x = patch.get_x() * scale_x

@@ -26,7 +26,7 @@ if __name__ == "__main__":
     typ_module.add_variable("obj4", obj4)
 
 
-    fig = plt.figure(figsize=(5, 8))
+    fig = plt.figure(figsize=(8, 8))
 
     # 创建2x2的子图布局
     ax1 = plt.subplot(221)  # 折线图
@@ -42,6 +42,9 @@ if __name__ == "__main__":
     # 折线图
     ax1.plot(x, y1, label="$sin(x)$", color="r", linestyle="--", marker="o")
     ax1.plot(x, y2, label="$cos(x)$", color="b", linestyle=":", marker="x")
+    x_scatter = np.random.rand(50) * 10
+    y_scatter = np.random.rand(50) - 1
+    ax1.scatter(x_scatter, y_scatter, c="g", alpha=0.5, label="scatter")
     ax1.set_title("折线图")
     ax1.legend()
 
