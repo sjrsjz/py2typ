@@ -44,11 +44,11 @@ class Py2TypPlot:
             return color
         if isinstance(color, (list, np.ndarray)):  # 处理 RGBA 格式
             # 将 0-1 范围转换为 0-255 范围
-            rgb = tuple(int(c * 255) for c in color[:3])
-            return f"rgb({rgb[0]}, {rgb[1]}, {rgb[2]})"
+            rgba = tuple(int(c * 255) for c in color)
+            return f"rgb({rgba[0]}, {rgba[1]}, {rgba[2]}, {rgba[3]})"
         if isinstance(color, tuple):
-            rgb = tuple(int(c * 255) for c in color[:3])
-            return f"rgb({rgb[0]}, {rgb[1]}, {rgb[2]})"
+            rgba = tuple(int(c * 255) for c in color)
+            return f"rgb({rgba[0]}, {rgba[1]}, {rgba[2]}, {rgba[3]})"
         return "black"
     @staticmethod
     def convert_linestyle(style):
@@ -61,7 +61,7 @@ class Py2TypPlot:
         }
         return style_map.get(style, 'none')
     @staticmethod
-    def plot2typ(fig: Figure, axis_precision: int = 2) -> str:
+    def plot2typ(fig: Figure, num_precision: int = 2) -> str:
         """Convert matplotlib figure to cetz code"""
             # 获取figsize并转换为厘米(1英寸=2.54厘米)
         fig_width, fig_height = fig.get_size_inches()
@@ -111,14 +111,19 @@ f"""{{
             scale_y_l = 1 / scale_y
             x_ticks = ax.get_xticks()
             y_ticks = ax.get_yticks()
-
-
+            
+            use_rect_border = False
+            border_str = ""
+            if len(x_ticks) > 0 and len(y_ticks) > 0:
+                use_rect_border = True
+                border_str = f"cetz.draw.rect(({x_min * scale_x}, {y_min * scale_y}), ({x_max * scale_x}, {y_max * scale_y}), stroke: black)"
+            
             result.append(
 f"""    cell[#{{
     {{figure(caption: figure.caption(position: top)[{ax_title}])[#context{{
       cetz.canvas({{
         cetz.draw.set-viewport(({ax_x0_cm - 1}cm, {ax_y0_cm - 1}cm), ({ax_width_cm + ax_x0_cm}cm, {ax_height_cm + ax_y0_cm}cm), bounds: ({real_ax_width}, {real_ax_height}))
-        cetz.draw.rect(({x_min * scale_x}, {y_min * scale_y}), ({x_max * scale_x}, {y_max * scale_y}), stroke: black)
+        {border_str}
         {{
           let x-max-text-width = 0"""
                 )
@@ -128,15 +133,13 @@ f"""    cell[#{{
             
             for x in x_ticks:
                 if x_min <= x <= x_max:
-                    x = round(x, axis_precision)
+                    x = round(x, num_precision)
                     result.append(f"          cetz.draw.line(({x * scale_x}, {y_min * scale_y}), ({x * scale_x}, {(y_min-0.05 * scale_y_l) * scale_y}), stroke: black)")
-                    #result.append(f"    let text-height = measure(${x}$).height.cm() / {width_cm} * 2.54")
-                    #result.append("    y-max-text-height = calc.max(y-max-text-height, text-height)")
                     result.append(f"          cetz.draw.content(({x * scale_x}, {(y_min-0.2 * scale_y_l) * scale_y}), ${x}$)")
                     
             for y in y_ticks:
                 if y_min <= y <= y_max:
-                    y = round(y, axis_precision)
+                    y = round(y, num_precision)
                     result.append(f"          cetz.draw.line(({x_min * scale_x}, {y * scale_y}), ({(x_min-0.05 * scale_x_l) * scale_x}, {y * scale_y}), stroke: black)")
                     result.append(f"          let text-width = measure(${y}$).width.cm() / {width_cm} * 2.54")
                     result.append("          x-max-text-width = calc.max(x-max-text-width, text-width)")
@@ -212,13 +215,27 @@ f"""    cell[#{{
             for collection in ax.collections:
                 if isinstance(collection, PathCollection):
                     offsets = collection.get_offsets()
-                    colors = collection.get_facecolors()
+                    
+                    # 获取原始颜色数据和colormap
+                    raw_colors = collection.get_array()
+                    cmap = collection.get_cmap()
+                    norm = collection.norm
+                    
+                    if raw_colors is not None and cmap is not None:
+                        # 手动执行颜色映射
+                        mapped_colors = cmap(norm(raw_colors))
+                    else:
+                        # fallback到face colors
+                        mapped_colors = collection.get_facecolors()
+                        
+                    edgecolors = collection.get_edgecolors()
+                    
                     for i, (x, y) in enumerate(offsets):
-                        color = Py2TypPlot.convert_color(colors[i] if len(colors) > i else colors[0])
+                        color = Py2TypPlot.convert_color(mapped_colors[i])
+                        edgecolor = Py2TypPlot.convert_color(edgecolors[i] if len(edgecolors) > i else edgecolors[0])
                         size = collection.get_sizes()[i] if len(collection.get_sizes()) > i else collection.get_sizes()[0]
-                        size /= 36  # 转换为点
-                        result.append(f"        cetz.draw.circle(({x * scale_x}, {y * scale_y}), radius: {size}pt, fill: {color}, stroke: none)")
-            # 绘制条形图
+                        size /= 36
+                        result.append(f"        cetz.draw.circle(({x * scale_x}, {y * scale_y}), radius: {size}pt, fill: {color}, stroke: {edgecolor})")            # 绘制条形图
             for patch in ax.patches:
                 if isinstance(patch, Rectangle):
                     x = patch.get_x() * scale_x
@@ -237,7 +254,14 @@ f"""    cell[#{{
                     theta1, theta2 = patch.theta1, patch.theta2
                     color = Py2TypPlot.convert_color(patch.get_facecolor())
                     radius = patch.r * min(scale_x, scale_y)
-                    result.append(f"           cetz.draw.arc({center}, radius: {radius}, start: {theta1}deg, stop: {theta2}deg, fill: {color}, mode:\"PIE\")")
+                    label = patch.get_label()
+                    percent = (theta2 - theta1) / 360 * 100
+                    percent_position = (patch.r / 2 * np.cos((theta1 + theta2) / 2 / 180 * np.pi) * min(scale_x, scale_y), patch.r / 2 * np.sin((theta1 + theta2) / 2 / 180 * np.pi) * min(scale_x, scale_y))
+                    title_position = (patch.r * 1.3 * np.cos((theta1 + theta2) / 2 / 180 * np.pi) * min(scale_x, scale_y), patch.r * 1.2 * np.sin((theta1 + theta2) / 2 / 180 * np.pi) * min(scale_x, scale_y))
+                    result.append(f"           cetz.draw.arc({center}, radius: {radius}, start: {theta1}deg, stop: {theta2}deg, fill: {color}, mode:\"PIE\", stroke: none)")
+                    result.append(f"           cetz.draw.content({percent_position}, [{round(percent, num_precision)}%])")
+                    if label:
+                        result.append(f"           cetz.draw.content({title_position}, [{label}])")
 
             result.append(
 """      })}]
