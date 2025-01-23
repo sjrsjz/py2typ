@@ -1,5 +1,4 @@
 from utils.py2typ_module import Py2TypModule
-from utils.py2typ_matplot import Py2TypPlot
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -27,17 +26,48 @@ if __name__ == "__main__":
     typ_module.add_variable("obj4", obj4)
 
 
-    # Create matplotlib plot
-    plt.figure(figsize=(5, 2))
-    x = np.linspace(0, 10, 100)
-    plt.plot(x, np.sin(x), label="sin(x)", color="r", linestyle="--")
-    plt.plot(x, np.cos(x), label="cos(x)", color="b", linestyle=":")
-    plt.scatter([1, 2, 3], [4, 5, 6])
+    fig = plt.figure(figsize=(5, 8))
 
-    plt.xlabel("x坐标")
-    plt.ylabel("y坐标")
-    plt.title("*测试图表*")
-    
+    # 创建2x2的子图布局
+    ax1 = plt.subplot(221)  # 折线图
+    ax2 = plt.subplot(222)  # 条形图
+    ax3 = plt.subplot(223)  # 饼图
+    ax4 = plt.subplot(224)  # 散点图
+
+    # 生成数据
+    x = np.linspace(0, 10, 10)
+    y1 = np.sin(x)
+    y2 = np.cos(x)
+
+    # 折线图
+    ax1.plot(x, y1, label="$sin(x)$", color="r", linestyle="--", marker="o")
+    ax1.plot(x, y2, label="$cos(x)$", color="b", linestyle=":", marker="x")
+    ax1.set_title("折线图")
+    ax1.legend()
+
+    # 条形图
+    ax2.bar(x, x*np.exp(-x) * 60, label="$x e^(-x)$", color="g")
+    ax2.set_title("条形图")
+    ax2.legend()
+
+    # 饼图
+    sizes = [15, 30, 45, 10]
+    labels = ['A类', 'B类', 'C类', 'D类']
+    ax3.pie(sizes, labels=labels, autopct='%1.1f%%')
+    ax3.set_title("饼图")
+
+    # 散点图
+    np.random.seed(42)
+    x_scatter = np.random.rand(50)
+    y_scatter = np.random.rand(50)
+    colors = np.random.rand(50)
+    ax4.scatter(x_scatter, y_scatter, c=colors, alpha=0.5)
+    ax4.set_title("散点图")
+
+    # 调整布局
+    plt.tight_layout()
+    plt.suptitle("多图表示例", y=1.02)
     fig = plt.gcf()
     typ_module.add_variable("plot", fig)
     typ_module.save()
+    plt.show()
