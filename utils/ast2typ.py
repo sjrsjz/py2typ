@@ -2,7 +2,6 @@ import ast
 import inspect
 import textwrap
 from typing import Any, Union
-import utils.py2typ_type as py2typ_type
 
 class Ast2Typ:
     @staticmethod

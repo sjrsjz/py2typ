@@ -1,5 +1,5 @@
 from typing import Any, Dict, List, Union
-from utils.py2typ_type import Py2Typ
+from .py2typ_type import Py2Typ
 """
 将python类型转换为typst的数据
 """
