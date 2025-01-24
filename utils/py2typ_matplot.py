@@ -45,9 +45,13 @@ class Py2TypPlot:
         if isinstance(color, (list, np.ndarray)):  # 处理 RGBA 格式
             # 将 0-1 范围转换为 0-255 范围
             rgba = tuple(int(c * 255) for c in color)
+            if len(rgba) == 3:
+                return f"rgb({rgba[0]}, {rgba[1]}, {rgba[2]})"
             return f"rgb({rgba[0]}, {rgba[1]}, {rgba[2]}, {rgba[3]})"
         if isinstance(color, tuple):
             rgba = tuple(int(c * 255) for c in color)
+            if len(rgba) == 3:
+                return f"rgb({rgba[0]}, {rgba[1]}, {rgba[2]})"
             return f"rgb({rgba[0]}, {rgba[1]}, {rgba[2]}, {rgba[3]})"
         return "black"
     @staticmethod
