@@ -190,10 +190,12 @@ f"""    cell[#{{
                 linewidth = line.get_linewidth()
                 label = line.get_label()
                 points = [f"({x * scale_x}, {y * scale_y})" for x, y in zip(x_data, y_data)]
-                if len(points) == 1:
-                    result.append(f"          let points = ({points[0]},)")
-                else:
-                    result.append(f"          let points = ({', '.join(points)})")
+                if len(points) < 2:
+                    continue
+                # if len(points) == 1:
+                #     result.append(f"          let points = ({points[0]},)")
+                # else:
+                result.append(f"          let points = ({', '.join(points)})")
                 result.append(f"          cetz.draw.line(..points, stroke: (paint: {color}, dash: {linestyle}, thickness: {linewidth}pt))")
                 marker = line.get_marker()
                 if marker != 'None':
@@ -215,7 +217,7 @@ f"""    cell[#{{
                     else:
                         result.append(f"          cetz.draw.content({points[-1]}, stroke: {color}, marker: {marker})")
                     
-                if label:
+                if label and not label.startswith('_child') and not label.startswith('_collection'):
                     labels_info.append({
                         'label': label,
                         'linestyle': linestyle,
