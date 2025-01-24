@@ -251,8 +251,8 @@ f"""    cell[#{{
                         size /= 36
                         result.append(f"        cetz.draw.circle(({x * scale_x}, {y * scale_y}), radius: {size}pt, fill: {color}, stroke: {edgecolor})")            # 绘制条形图
                     
-                    labels = collection.get_label()
-                    if labels and labels != '_child0' and labels != '_collection0':
+                    labels:str = collection.get_label()
+                    if labels and not labels.startswith('_child') and not labels.startswith('_collection'):
                         # 获取散点图样式信息
                         color = Py2TypPlot.convert_color(mapped_colors[0])
                         edgecolor = Py2TypPlot.convert_color(edgecolors[0])
