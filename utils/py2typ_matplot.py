@@ -1,6 +1,7 @@
 from matplotlib.collections import PathCollection
 from matplotlib.patches import Rectangle, Wedge
 from matplotlib.figure import Figure
+import matplotlib
 import numpy as np
 
 class Py2TypPlot:
@@ -96,8 +97,9 @@ f"""{{
   let cell = block.with(width: auto, height: auto, inset: 0pt)
   grid(
   columns: {ncols},
+  column-gutter: 5em,
   rows: auto,
-  gutter: 5pt,"""
+  gutter: 5em,"""
         )
                 
         # 设置视图范围
@@ -129,19 +131,27 @@ f"""{{
             scale_y_l = 1 / scale_y
             x_ticks = ax.get_xticks()
             y_ticks = ax.get_yticks()
+
+            x_offset = - x_min * scale_x
             
             use_rect_border = False
+            use_floating = False
             border_str = ""
             if len(x_ticks) > 0 and len(y_ticks) > 0:
                 use_rect_border = True
-                border_str = f"cetz.draw.rect(({x_min * scale_x}, {y_min * scale_y}), ({x_max * scale_x}, {y_max * scale_y}), stroke: black)"
+                border_str = f"cetz.draw.rect(({x_min * scale_x + x_offset}, {y_min * scale_y}), ({x_max * scale_x + x_offset}, {y_max * scale_y}), stroke: black)"
+                use_floating = True         
             
+            floating_start = f"          cetz.draw.floating({{"
+            floating_end = "})"
+
             result.append(
 f"""    cell[#{{
     {{figure(caption: figure.caption(position: top)[{ax_title}])[#context{{
       cetz.canvas({{
         cetz.draw.set-viewport(({ax_x0_cm - 1}cm, {ax_y0_cm - 1}cm), ({ax_width_cm + ax_x0_cm}cm, {ax_height_cm + ax_y0_cm}cm), bounds: ({real_ax_width}, {real_ax_height}))
         {border_str}
+        {floating_start if use_floating else ""}
         {{
           let x-max-text-width = 0"""
                 )
@@ -152,32 +162,32 @@ f"""    cell[#{{
             for x in x_ticks:
                 if x_min <= x <= x_max:
                     x = round(x, num_precision)
-                    result.append(f"          cetz.draw.line(({x * scale_x}, {y_min * scale_y}), ({x * scale_x}, {(y_min-0.05 * scale_y_l) * scale_y}), stroke: black)")
-                    result.append(f"          cetz.draw.content(({x * scale_x}, {(y_min-0.2 * scale_y_l) * scale_y}), ${x}$)")
+                    result.append(f"          cetz.draw.line(({x * scale_x + x_offset}, {y_min * scale_y}), ({x * scale_x + x_offset}, {(y_min-0.05 * scale_y_l) * scale_y}), stroke: black)")
+                    result.append(f"          cetz.draw.content(({x * scale_x + x_offset}, {(y_min-0.2 * scale_y_l) * scale_y}), ${x}$)")
                     
             for y in y_ticks:
                 if y_min <= y <= y_max:
                     y = round(y, num_precision)
-                    result.append(f"          cetz.draw.line(({x_min * scale_x}, {y * scale_y}), ({(x_min-0.05 * scale_x_l) * scale_x}, {y * scale_y}), stroke: black)")
+                    result.append(f"          cetz.draw.line(({x_min * scale_x + x_offset}, {y * scale_y}), ({(x_min-0.05 * scale_x_l) * scale_x + x_offset}, {y * scale_y}), stroke: black)")
                     result.append(f"          let text-width = measure(${y}$).width.cm() / {width_cm} * 2.54")
                     result.append("          x-max-text-width = calc.max(x-max-text-width, text-width)")
-                    result.append(f"          cetz.draw.content(({(x_min-0.1 * scale_x_l) * scale_x} - text-width, {y * scale_y}), ${y}$)")
+                    result.append(f"          cetz.draw.content(({(x_min-0.1 * scale_x_l) * scale_x + x_offset} - text-width, {y * scale_y}), ${y}$)")
 
             # 添加轴标题
             if ax.get_xlabel():
-                result.append(f"          cetz.draw.content(({(x_min+x_max)/2 * scale_x}, {(y_min-0.5 * scale_y_l) * scale_y}), [{ax.get_xlabel()}])")
+                result.append(f"          cetz.draw.content(({(x_min+x_max)/2 * scale_x + x_offset}, {(y_min-0.5 * scale_y_l) * scale_y}), [{ax.get_xlabel()}])")
             if ax.get_ylabel():
-                result.append(f"          cetz.draw.content(({(x_min-0.5 * scale_x_l) * scale_x} - x-max-text-width, {(y_min+y_max)/2 * scale_y}), rotate(-90deg)[{ax.get_ylabel()}])")
+                result.append(f"          cetz.draw.content(({(x_min-0.5 * scale_x_l) * scale_x + x_offset} - x-max-text-width, {(y_min+y_max)/2 * scale_y}), rotate(-90deg)[{ax.get_ylabel()}])")
 
             result.append("        }")
             # 添加网格线
             if len(ax.xaxis.get_gridlines()) > 0:
                 for x in x_ticks:
                     if x_min <= x <= x_max:
-                        result.append(f"        cetz.draw.line(({x * scale_x}, {y_min * scale_y}), ({x * scale_x}, {y_max * scale_y}), stroke: (gray + 0.2pt))")
+                        result.append(f"        cetz.draw.line(({x * scale_x + x_offset}, {y_min * scale_y}), ({x * scale_x + x_offset}, {y_max * scale_y}), stroke: (gray + 0.2pt))")
                 for y in y_ticks:
                     if y_min <= y <= y_max:
-                        result.append(f"        cetz.draw.line(({x_min * scale_x}, {y * scale_y}), ({x_max * scale_x}, {y * scale_y}), stroke: (gray + 0.2pt))")    
+                        result.append(f"        cetz.draw.line(({x_min * scale_x + x_offset}, {y * scale_y}), ({x_max * scale_x + x_offset}, {y * scale_y}), stroke: (gray + 0.2pt))")    
             
             # 绘制线条
             # 收集所有终点标签信息
@@ -189,7 +199,22 @@ f"""    cell[#{{
                 linestyle = Py2TypPlot.convert_linestyle(line.get_linestyle())
                 linewidth = line.get_linewidth()
                 label = line.get_label()
-                points = [f"({x * scale_x}, {y * scale_y})" for x, y in zip(x_data, y_data)]
+                if isinstance(line, matplotlib.lines.Line2D) and len(x_data) == 2 and all(y == y_data[0] for y in y_data):
+                    # 水平参考线处理
+                    y_val = y_data[0]
+                    points = [
+                        f"({ax.get_xlim()[0] * scale_x + x_offset}, {y_val * scale_y})",
+                        f"({ax.get_xlim()[1] * scale_x + x_offset}, {y_val * scale_y})"
+                    ]
+                elif isinstance(line, matplotlib.lines.Line2D) and len(y_data) == 2 and all(x == x_data[0] for x in x_data):
+                    # 垂直参考线处理
+                    x_val = x_data[0]
+                    points = [
+                        f"({x_val * scale_x + x_offset}, {ax.get_ylim()[0] * scale_y})",
+                        f"({x_val * scale_x + x_offset}, {ax.get_ylim()[1] * scale_y})"
+                    ]
+                else:
+                    points = [f"({x * scale_x + x_offset}, {y * scale_y})" for x, y in zip(x_data, y_data)]
                 if len(points) < 2:
                     continue
                 # if len(points) == 1:
@@ -203,16 +228,16 @@ f"""    cell[#{{
                         if len(points) == 1:
                             result.append(f"          cetz.draw.circle({points[0]}, radius: 1pt, fill: {color}, stroke: none)")
                         elif len(points) > 1:
-                            result.append(f"          range(points.len()).map(i => cetz.draw.circle(points.at(i), radius: 1pt, fill: {color}, stroke: none)).join()")
+                            result.append(f"          points.map(p => cetz.draw.circle(p, radius: 1pt, fill: {color}, stroke: none)).join()")
                     elif marker == 'x':
                         result.append("          {")
                         result.append(f"          let marker = [#box(width: 1cm,height: 1cm)[#align(center + horizon)[#text(fill: {color}, size: 0.5em)[✖]]]]")
-                        result.append(f"          range(points.len()).map(i => cetz.draw.content((points.at(i).at(0),points.at(i).at(1)), stroke: {color}, marker)).join()")
+                        result.append(f"          points.map(p => cetz.draw.content((p.at(0),p.at(1)), stroke: {color}, marker)).join()")
                         result.append("          }")
                     elif marker == '+':
                         result.append("          {")
                         result.append(f"          let marker = [#box(width: 1cm,height: 1cm)[#align(center + horizon)[#text(fill: {color}, size: 0.5em)[➕]]]]")
-                        result.append(f"          range(points.len()).map(i => cetz.draw.content((points.at(i).at(0),points.at(i).at(1)), stroke: {color}, marker)).join()")
+                        result.append(f"          points.map(p => cetz.draw.content((p.at(0),p.at(1)), stroke: {color}, marker)).join()")
                         result.append("          }")
                     else:
                         result.append(f"          cetz.draw.content({points[-1]}, stroke: {color}, marker: {marker})")
@@ -246,12 +271,21 @@ f"""    cell[#{{
                         
                     edgecolors = collection.get_edgecolors()
                     
+                    points = []
                     for i, (x, y) in enumerate(offsets):
                         color = Py2TypPlot.convert_color(mapped_colors[i] if len(mapped_colors) > i else mapped_colors[0])
                         edgecolor = Py2TypPlot.convert_color(edgecolors[i] if len(edgecolors) > i else edgecolors[0])
                         size = collection.get_sizes()[i] if len(collection.get_sizes()) > i else collection.get_sizes()[0]
                         size /= 36
-                        result.append(f"        cetz.draw.circle(({x * scale_x}, {y * scale_y}), radius: {size}pt, fill: {color}, stroke: {edgecolor})")            # 绘制条形图
+                        points.append(f"({x * scale_x + x_offset}, {y * scale_y}, {size}pt, {color}, {edgecolor})")
+
+                    if len(points) == 1:
+                        result.append(f"          let points = ({points[0]},)")
+                    else:
+                        result.append(f"          let points = ({', '.join(points)})")
+                    result.append("          points.map(p => cetz.draw.circle((p.at(0), p.at(1)), radius: p.at(2), fill: p.at(3), stroke: p.at(4))).join()")
+
+                    #result.append(f"        cetz.draw.circle(({x * scale_x + x_offset}, {y * scale_y}), radius: {size}pt, fill: {color}, stroke: {edgecolor})")            # 绘制条形图
                     
                     labels:str = collection.get_label()
                     if labels and not labels.startswith('_child') and not labels.startswith('_collection'):
@@ -283,8 +317,8 @@ f"""    cell[#{{
                 
                 # 绘制图例背景
                 result.append(f"""          cetz.draw.rect(
-                        ({x_max * scale_x - 0.55} - x-max-text-width, {legend_y}),
-                        ({x_max * scale_x - 0.05}, {legend_y - legend_height}),
+                        ({x_max * scale_x - 0.55 + x_offset} - x-max-text-width, {legend_y}),
+                        ({x_max * scale_x - 0.05 + x_offset}, {legend_y - legend_height}),
                         fill: rgb(255, 255, 255, 200),
                         stroke: gray
                     )""")
@@ -297,8 +331,8 @@ f"""    cell[#{{
                     if info['type'] == 'line':
                         # 绘制线条
                         result.append(f"""          cetz.draw.line(
-                            ({x_max * scale_x - 0.45} - x-max-text-width, {y_pos}),
-                            ({x_max * scale_x - 0.25} - x-max-text-width, {y_pos}),
+                            ({x_max * scale_x - 0.45 + x_offset} - x-max-text-width, {y_pos}),
+                            ({x_max * scale_x - 0.25 + x_offset} - x-max-text-width, {y_pos}),
                             stroke: (paint: {info['color']}, dash: {info['linestyle']}, thickness: 1pt)
                         )""")
                         
@@ -306,7 +340,7 @@ f"""    cell[#{{
                         if info['marker'] != 'None':
                             if info['marker'] == 'o':
                                 result.append(f"""          cetz.draw.circle(
-                                    ({x_max * scale_x - 0.35} - x-max-text-width, {y_pos}),
+                                    ({x_max * scale_x - 0.35 + x_offset} - x-max-text-width, {y_pos}),
                                     radius: 1pt,
                                     fill: {info['color']},
                                     stroke: none
@@ -317,14 +351,14 @@ f"""    cell[#{{
                                     '+': '➕'
                                 }
                                 result.append(f"""          cetz.draw.content(
-                                    ({x_max * scale_x - 0.35} - x-max-text-width, {y_pos}),
+                                    ({x_max * scale_x - 0.35 + x_offset} - x-max-text-width, {y_pos}),
                                     [#box(width: 1cm,height: 1cm)[#align(center + horizon)[#text(fill: {info['color']}, size: 0.5em)[{marker_map[info['marker']]}]]]]
                                 )""")
                     
                     elif info['type'] == 'scatter':
                         # 绘制散点标记
                         result.append(f"""          cetz.draw.circle(
-                            ({x_max * scale_x - 0.35} - x-max-text-width, {y_pos}),
+                            ({x_max * scale_x - 0.35 + x_offset} - x-max-text-width, {y_pos}),
                             radius: 1pt,
                             fill: {info['color']},
                             stroke: {info['stroke']}
@@ -332,7 +366,7 @@ f"""    cell[#{{
                     
                     # 绘制标签文本
                     result.append(f"""          cetz.draw.content(
-                        ({x_max * scale_x - 0.15} - x-max-text-width, {y_pos}),
+                        ({x_max * scale_x - 0.15 + x_offset} - x-max-text-width, {y_pos}),
                         [{info['label']}],
                         anchor: "west"
                     )""")
@@ -345,29 +379,29 @@ f"""    cell[#{{
                     width = patch.get_width() * scale_x
                     height = patch.get_height() * scale_y
                     color = Py2TypPlot.convert_color(patch.get_facecolor())
-                    result.append(f"        cetz.draw.rect(({x}, {y}), ({x + width}, {y + height}), fill: {color}, stroke: black)")
+                    result.append(f"        cetz.draw.rect(({x + x_offset}, {y}), ({x + width + x_offset}, {y + height}), fill: {color}, stroke: black)")
                     
                     # 如果有标签,在条形上方显示
                     label = patch.get_label()
                     if label and label != '_nolegend_':
-                        result.append(f"        cetz.draw.content(({x + width/2}, {y + height + 0.1}), [{label}])")
+                        result.append(f"        cetz.draw.content(({x + width/2 + x_offset}, {y + height + 0.1}), [{label}])")
                 if isinstance(patch, Wedge):
-                    center = (patch.r * np.cos(patch.theta1 / 180 * np.pi) * min(scale_x, scale_y), patch.r * np.sin(patch.theta1 / 180 * np.pi) * min(scale_x, scale_y))  # 饼图中心
+                    center = (patch.r * np.cos(patch.theta1 / 180 * np.pi) * min(scale_x, scale_y) + x_offset, patch.r * np.sin(patch.theta1 / 180 * np.pi) * min(scale_x, scale_y))  # 饼图中心
                     theta1, theta2 = patch.theta1, patch.theta2
                     color = Py2TypPlot.convert_color(patch.get_facecolor())
                     radius = patch.r * min(scale_x, scale_y)
                     label = patch.get_label()
                     percent = (theta2 - theta1) / 360 * 100
-                    percent_position = (patch.r / 2 * np.cos((theta1 + theta2) / 2 / 180 * np.pi) * min(scale_x, scale_y), patch.r / 2 * np.sin((theta1 + theta2) / 2 / 180 * np.pi) * min(scale_x, scale_y))
-                    title_position = (patch.r * 1.3 * np.cos((theta1 + theta2) / 2 / 180 * np.pi) * min(scale_x, scale_y), patch.r * 1.2 * np.sin((theta1 + theta2) / 2 / 180 * np.pi) * min(scale_x, scale_y))
+                    percent_position = (patch.r / 2 * np.cos((theta1 + theta2) / 2 / 180 * np.pi) * min(scale_x, scale_y) + x_offset, patch.r / 2 * np.sin((theta1 + theta2) / 2 / 180 * np.pi) * min(scale_x, scale_y))
+                    title_position = (patch.r * 1.3 * np.cos((theta1 + theta2) / 2 / 180 * np.pi) * min(scale_x, scale_y) + x_offset, patch.r * 1.2 * np.sin((theta1 + theta2) / 2 / 180 * np.pi) * min(scale_x, scale_y))
                     result.append(f"           cetz.draw.arc({center}, radius: {radius}, start: {theta1}deg, stop: {theta2}deg, fill: {color}, mode:\"PIE\", stroke: none)")
                     result.append(f"           cetz.draw.content({percent_position}, [{round(percent, num_precision)}%])")
                     if label:
                         result.append(f"           cetz.draw.content({title_position}, [{label}])")
 
             result.append(
-"""      })}]
-    }}],"""
+f"""      {floating_end if use_floating else ""}}})}}]
+    }}}}],"""
             )
 
         result.append("  )\n}")
