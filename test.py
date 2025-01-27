@@ -71,6 +71,6 @@ if __name__ == "__main__":
     plt.tight_layout()
     plt.suptitle("多图表示例", y=1.02)
     fig = plt.gcf()
-    typ_module.add_variable("plot", fig)
+    typ_module.add_variable("plot", fig, num_precision=4)
     typ_module.save()
     plt.show()

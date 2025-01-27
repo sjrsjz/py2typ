@@ -28,7 +28,7 @@ class Py2Typ:
             result += escape_map.get(char, char)
         return result
     @staticmethod
-    def type2typ(obj):
+    def type2typ(obj, **kwargs) -> Dict:
         """
         将python类型转换为typst的数据
         :param obj: python类型
@@ -73,7 +73,7 @@ class Py2Typ:
         if isinstance(obj, coo_matrix):
             return {"type": "array", "value": [Py2Typ.type2typ(i) for i in obj.toarray().tolist()]}
         if isinstance(obj, Figure):
-            return {"type": "matplot_figure", "value": Py2TypPlot.plot2typ(obj)}
+            return {"type": "matplot_figure", "value": Py2TypPlot.plot2typ(obj, **kwargs)}
         if obj is None:
             return {"type": "none", "value": None}
         raise TypeError(f"Unsupported type: {type(obj)}, value: {str(obj)}")

@@ -13,8 +13,8 @@ class Py2TypModule:
     def __init__(self, module_name: str):
         self.__variables = {}
         self.__module_name = module_name
-    def add_variable(self, name: str, value: Any, direct_str: bool = False):
-        self.__variables[name] = (Py2Typ.type2typ(value), direct_str)
+    def add_variable(self, name: str, value: Any, direct_str: bool = False, **kwargs):
+        self.__variables[name] = (Py2Typ.type2typ(value, **kwargs), direct_str)
     def remove_variable(self, name: str):
         self.__variables.pop(name)    
     def to_typ(self):
